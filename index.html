@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+      :root {
+        --gl-orange: #F37037; --gl-black: #000000; --gl-white: #FFFFFF;
+        --gl-light-grey: #E6E7E8; --gl-dark-grey: #414042; --gl-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      }
+      html, body { height: 100%; margin: 0; overflow: hidden; }
+      body { display: flex; flex-direction: column; background-color: var(--gl-light-grey); font-family: var(--gl-font); }
+
+      .top-banner { 
+        background-color: var(--gl-black); 
+        color: var(--gl-white); 
+        padding: 15px 40px; 
+        border-bottom: 4px solid var(--gl-orange); 
+        z-index: 1100;
+        flex-shrink: 0;
+      }
+      .banner-title { font-weight: 800; font-size: 1.5rem; letter-spacing: 1px; margin: 0; text-transform: uppercase; }
+      .banner-subtext { font-size: 0.8rem; color: #ccc; margin: 5px 0 0 0; }
+
+      .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+      .sidebar { 
+        width: 280px; 
+        background-color: var(--gl-black); 
+        color: var(--gl-white); 
+        padding: 30px 20px; 
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .logo-container { margin-bottom: 40px; text-align: center; }
+      .gl-logo-img { width: 100%; max-width: 180px; height: auto; }
+      .nav-link { 
+        color: var(--gl-light-grey); 
+        cursor: pointer; 
+        padding: 12px 15px; 
+        text-transform: uppercase; 
+        letter-spacing: 1px; 
+        font-size: 0.8rem; 
+        transition: 0.3s; 
+        text-decoration: none; 
+        display: block;
+        margin-bottom: 5px;
+      }
+      .nav-link:hover { color: var(--gl-orange); background-color: rgba(255,255,255,0.05); }
+      .nav-link.active { color: var(--gl-orange) !important; font-weight: 700; background-color: rgba(255,255,255,0.1); }
+
+      /* Update these rules in your <style> block */
+      .content-area { 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; 
+        overflow: hidden; /* Keep the main container clipped */
+        position: relative;
+      }      
+
+      .sub-nav { 
+        background: var(--gl-white); 
+        padding: 0 40px; 
+        border-bottom: 1px solid #ddd; 
+        display: flex; 
+        gap: 30px; 
+        align-items: center; 
+        height: 50px;
+        flex-shrink: 0;
+      }
+      .sub-link { 
+        background: none; border: none; 
+        padding: 13px 0; 
+        font-weight: 700; 
+        color: var(--gl-dark-grey); 
+        text-transform: uppercase; 
+        font-size: 0.75rem; 
+        cursor: pointer; 
+        border-bottom: 3px solid transparent; 
+      }
+      .sub-link.active { border-bottom: 3px solid var(--gl-orange); color: var(--gl-orange); }
+
+
+      /* Fix for the overlapping/missing headers seen in the screenshot */
+      .table-fixed-layout {
+        table-layout: fixed !important;
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table-fixed-layout th {
+        background-color: #212529 !important; /* Dark header matching the screenshot */
+        color: white !important;
+        white-space: normal !important; /* Allows header text to wrap */
+        word-wrap: break-word;
+        vertical-align: middle;
+        border: 1px solid #373b3e;
+      }
+
+      .table-fixed-layout td {
+        word-wrap: break-word !important;
+        white-space: normal !important;
+        vertical-align: top;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      /* Ensure the wrapper doesn't collapse */
+      .dashboard-wrapper { 
+        display: flex; 
+        flex: 1; 
+        overflow: hidden; 
+        height: calc(100vh - 120px); /* Adjust based on your header/sub-nav height */
+      }
+
+      .filter-container-area { width: 280px; min-width: 280px; background-color: #f8f9fa; border-right: 1px solid #ddd; height: 100%; }
+      .filter-sidebar { width: 280px; background: #f8f9fa; padding: 15px; overflow-y: auto; height: 100%; transition: transform 0.3s ease; transform: translateX(0); }
+      .filter-sidebar.collapsed { transform: translateX(-280px); }
+      .toggle-btn { background: none; border: 1px solid #ddd; padding: 2px 8px; cursor: pointer; font-size: 1rem; border-radius: 4px; margin-right: 15px; }
+
+      .filter-scroll-container { max-height: 110px; overflow-y: auto; background: white; border: 1px solid #ddd; padding: 5px; margin-bottom: 15px; }
+      .filter-item { display: flex; align-items: center; font-size: 0.65rem; padding: 2px 0; }
+      .filter-item input { margin-right: 8px; }
+      .filter-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+      .filter-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; color: var(--gl-dark-grey); }
+      .btn-select-action { font-size: 0.5rem; padding: 0px 4px; color: var(--gl-orange); cursor: pointer; border: 1px solid var(--gl-orange); border-radius: 2px; text-transform: uppercase; }
+      
+      .hero-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid var(--gl-orange); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+      
+      .card { border: none; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 10px; }
+      .card-title { color: var(--gl-black); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; border-bottom: 1px solid var(--gl-light-grey); padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+      
+      /* Accordion Customization */
+      .accordion-item { border: 1px solid #dee2e6; border-radius: 4px !important; margin-bottom: 10px; overflow: hidden; }
+      .accordion-header { background-color: #f8f9fa; }
+
+      /* Update these specific rules in your <style> section */
+      .accordion-button { 
+        padding: 8px 15px; 
+        font-weight: 800; 
+        font-size: 0.75rem; 
+        background-color: #f8f9fa; 
+        color: #333; 
+        display: flex;
+        flex-direction: row; /* Changed from row-reverse */
+        justify-content: flex-start; /* Ensure everything stays left */
+        align-items: center;
+      }
+
+      /* Move the arrow to the left of the text */
+      .accordion-button::after { 
+        content: "";
+        order: -1; /* This forces the arrow to the beginning (left) */
+        margin-left: 0;
+        margin-right: 10px; /* Space between arrow and text */
+        background-size: 0.8rem;
+        filter: brightness(0);
+      }
+      .accordion-button:not(.collapsed) { 
+        color: var(--gl-orange); 
+        background-color: #fff; 
+        box-shadow: none;
+      }
+      .accordion-button:not(.collapsed)::after {
+        filter: sepia(100%) saturate(300%) hue-rotate(345deg);
+      }
+      .accordion-body { padding: 15px; background-color: #fff; }
+
+      /* Header Date Filter */
+      .header-filter-wrap { display: flex; align-items: center; gap: 10px; margin-right: 20px; }
+      .header-filter-label { font-size: 0.65rem; font-weight: bold; color: var(--gl-dark-grey); text-transform: uppercase; }
+      .local-filter-select { font-size: 0.65rem; padding: 2px 5px; border: 1px solid #ccc; border-radius: 3px; outline: none; }
+
+    .viz-canvas {
+      flex: 1;
+      padding: 15px 40px;
+      overflow-y: auto !important;
+      background-color: var(--gl-light-grey);
+      display: flex;
+      flex-direction: column;
+      /* CRITICAL: Force vertical alignment to the top */
+      justify-content: flex-start !important; 
+      align-items: stretch;
+      gap: 0; /* Remove gaps that might be causing invisible spacing */
+    }
+
+    .module-view {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      /* Force the view to snap to the top of its parent */
+      justify-content: flex-start !important;
+      margin-top: 0 !important;
+    }
+
+    #progress-filters {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      margin-bottom: 15px; /* Consistent spacing below filters */
+    }
+
+    .hidden { 
+      display: none !important; 
+    }
+
+      .google-visualization-tooltip { font-size: 0.65rem !important; pointer-events: none !important; }
+    </style>
+  </head>
+  <body>
+
+  <header class="top-banner">
+    <div class="banner-title">BUSINESS PROCESS TRANSFORMATION DASHBOARD</div>
+    <div class="banner-subtext">part of global GL Transformation initiative PROJECT TRANSCEND - GOAL-3 BPT/CPT Transformation with On-going GM/Reclaim</div>
+  </header>
+
+  <div class="main-layout">
+    <nav class="sidebar">
+      <div class="logo-container">
+        <img src="https://www.globallogic.com/wp-content/uploads/2021/07/Press-Kit-Logo_GL-Hitachi_White-2.jpg" class="gl-logo-img">
+      </div>
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link active" id="nav-PERF" href="javascript:void(0)" onclick="switchModule('PERFORMANCE_SUMMARY')">
+            PERFORMANCE SUMMARY
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="nav-PROG" href="javascript:void(0)" onclick="switchModule('PROGRESS_CHASER')">
+            PROGRESS CHASER
+          </a>
+        </li>
+        <li class="nav-item"><a class="nav-link">Case Studies</a></li>
+        <li class="nav-item"><a class="nav-link">Artifacts</a></li>
+      </ul>
+    </nav>
+
+    <main class="content-area">
+      <div id="dynamic-sub-nav" class="sub-nav"></div>
+
+      <div class="dashboard-wrapper">
+        <div class="filter-container-area">
+          <aside id="filter-sidebar" class="filter-sidebar">
+            <h6 style="font-weight:700; font-size:0.7rem; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:5px;">GLOBAL FILTERS</h6>
+            <div id="filter-container"></div>
+            <button class="btn btn-sm btn-outline-secondary w-100 mt-3" onclick="resetUI()" style="font-size:0.7rem;">RESET ALL</button>
+          </aside>
+
+          <aside id="filter-sidebar" class="filter-sidebar">
+            <h6 id="sidebar-title" style="font-weight:700; font-size:0.7rem; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:5px;">
+              GLOBAL FILTERS
+            </h6>
+            
+            <div id="perf-filter-group">
+              <div id="filter-container"></div>
+              <button class="btn btn-sm btn-outline-secondary w-100 mt-3" onclick="resetUI()" style="font-size:0.7rem;">RESET ALL</button>
+            </div>
+
+            <div id="prog-filter-group" class="hidden">
+              <div id="progress-filters-sidebar"></div>
+              <button class="btn btn-sm btn-outline-primary w-100 mt-3" onclick="resetProgressFilters()" style="font-size:0.7rem;">RESET PROGRESS</button>
+            </div>
+          </aside>
+
+        </div>
+        <section class="viz-canvas">
+          <div id="module-hero-container"></div>
+          <div id="view-perf-analytics" class="module-view hidden">
+            <div class="accordion" id="perfAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">KEY BPT MATRIX TRACKING</button></h2>
+                <div id="collapseOne" class="accordion-collapse collapse show">
+                  <div class="accordion-body">
+                    <div class="row g-2">
+                      <div class="col-lg-6"><div class="card"><div class="card-title">REVENUE: MIX</div><div id="chart_mix" style="height:400px;"></div></div></div>
+                      <div class="col-lg-6"><div class="card"><div class="card-title">PROFITABILITY: MARGIN</div><div id="chart_margin" style="height:400px;"></div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                  <div class="accordion-button collapsed" style="cursor: default;">
+                    <div class="d-flex justify-content-between w-100 align-items-center">
+                      <span data-bs-toggle="collapse" data-bs-target="#collapseTwo" style="cursor: pointer; flex-grow: 1;">NEW PROJECTS LAUNCHED IN THE LATEST QUARTER</span>
+                      <div class="header-filter-wrap">
+                        <span class="header-filter-label" style="font-size: 0.65rem; font-weight: bold; margin-right: 5px;">Project Start Date:</span>
+                        <select id="local-date-filter" class="local-filter-select" onchange="applyFilters()" style="font-size: 0.65rem;">
+                          <option value="2025-04-01">2025-04-01</option>
+                          <option value="2025-07-01">2025-07-01</option>
+                          <option value="2025-10-01">2025-10-01</option>
+                          <option value="2026-01-01" selected>2026-01-01</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#perfAccordion">
+                  <div class="accordion-body">
+                    <div class="row g-2">
+                      <div class="col-lg-12"><div class="card"><div class="card-title">BY DELIVERY GROUP (PRIMARY)</div><div id="chart_new_projects_grp" style="height:400px; width: 100%;"></div></div></div>
+                      <div class="col-lg-12"><div class="card"><div class="card-title">BY BU</div><div id="chart_new_projects_bu" style="height:400px; width: 100%;"></div></div></div>
+                      <div class="col-lg-12"><div class="card"><div class="card-title">BY ENGAGEMENT MODEL</div><div id="chart_new_projects_mod" style="height:400px; width: 100%;"></div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="view-perf-data" class="module-view hidden">
+            <div class="accordion" id="perfDataAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingData">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDataView">
+                    <div class="d-flex justify-content-between align-items-center w-100 pe-3">
+                      <span style="font-weight: bold;">ALL DATA FOR REVIEW</span>
+                      <div class="d-flex align-items-center" onclick="event.stopPropagation();">
+                        <span class="header-filter-label me-1" style="font-size: 0.65rem; font-weight: bold;">Select Quarter:</span>
+                        <select id="local-qtr-filter" class="form-select form-select-sm me-3" onchange="renderDataTable()" style="font-size: 0.65rem; width: auto; height: 24px; padding: 0 5px;"></select>
+                        <div class="form-check form-switch me-3">
+                          <input class="form-check-input" type="checkbox" id="toggle-project-id" onchange="renderDataTable()" style="cursor: pointer;">
+                          <label class="form-check-label" for="toggle-project-id" style="font-size: 0.65rem; font-weight: bold; cursor: pointer;">Show Projects</label>
+                        </div>
+                        <button class="btn btn-sm btn-success" onclick="downloadTableAsCSV()" style="font-size: 0.65rem; line-height: 1; padding: 4px 8px;">Download CSV</button>
+                      </div>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseDataView" class="accordion-collapse collapse show">
+                  <div class="accordion-body">
+                    <div id="raw-data-container"></div>
+                    <div id="pagination-controls" class="d-flex justify-content-between align-items-center mt-3 hidden">
+                      <div id="page-info" style="font-size: 0.65rem; font-weight: bold;"></div>
+                      <nav><ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prev-btn-item"><button class="page-link" onclick="changePage(-1)">Previous</button></li>
+                        <li class="page-item" id="next-btn-item"><button class="page-link" onclick="changePage(1)">Next</button></li>
+                      </ul></nav>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="view-prog-dashboard" class="module-view hidden">
+            <div id="progress-filters" class="row g-2 mb-3" style="min-height: 50px;"></div>
+            <div class="card p-3 shadow-sm">
+              <div id="prog-chart-placeholder"></div>
+            </div>
+          </div>
+          <div id="loader" class="text-center p-5 hidden">
+            <div class="spinner-border text-warning" style="width: 3rem; height: 3rem;"></div>
+            <div class="mt-3" style="font-size: 1rem; font-weight: bold; color: var(--gl-dark-grey);">LOADING DATA...</div>
+          </div>
+          <div id="view-prog-progress" class="module-view hidden">
+            <div class="card p-3 shadow-sm">
+              <div id="prog-table-placeholder"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+
+<script>
+  let isDataLoaded = false; // Add this global flag at the top of your script
+  let masterData = [];
+  let progressChaserData = [];
+  let currentModule = 'PERFORMANCE_SUMMARY';
+  let currentPage = 1;
+  const recordsPerPage = 50;
+  let currentTableData = [];
+
+/**
+ * Redraw listener for the New Projects section
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  var accordionElement = document.getElementById('collapseTwo');
+  if (accordionElement) {
+    accordionElement.addEventListener('shown.bs.collapse', function () {
+      // Get data and headers
+      if (masterData.length > 0) {
+        const headers = masterData[0];
+        const rows = masterData.slice(1);
+        
+        // Target specifically the New Project charts
+        renderNewProjectsBreakdown(headers, rows);
+      }
+    });
+  }
+});
+
+  const cleanNumber = (val) => {
+    if (!val) return 0;
+    const cleaned = String(val).replace(/[^0-9.-]+/g, "");
+    return parseFloat(cleaned) || 0;
+  };
+
+  google.charts.load('current', { 'packages': ['corechart'] });
+
+
+
+    window.onload = function() {
+      // 1. Setup the basic framework
+      injectCommonHeader();
+      renderModuleShell('PERF'); 
+
+      // 2. IMPORTANT: Hide all views immediately so no "empty" boxes show
+      document.querySelectorAll('.module-view').forEach(el => el.classList.add('hidden'));
+
+      // 3. Show the central loader
+      const loader = document.getElementById('loader');
+      if (loader) {
+        loader.classList.remove('hidden');
+      }
+    //document.getElementById('loader').classList.remove('hidden');
+      // 4. Start the data request
+      google.script.run.withSuccessHandler(onDataSuccess).getSection1Data();
+    };
+
+  function onDataSuccess(rawData) {
+      masterData = JSON.parse(rawData);
+      // 1. Hide the loader
+      isDataLoaded = true; // <--- Unlock the tabs
+      
+      const loader = document.getElementById('loader');
+      if (loader) loader.classList.add('hidden');
+  
+      buildSidebar();
+      routeTab('PERF', 'ANALYTICS');
+  }
+
+    function switchModule(target) {
+        currentModule = target;
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); // [cite: 115]
+        document.querySelectorAll('.module-view').forEach(el => el.classList.add('hidden')); // [cite: 115]
+
+        const globalFilterPanel = document.querySelector('.filter-container-area');
+
+        if (target === 'PROGRESS_CHASER') {
+            if (globalFilterPanel) globalFilterPanel.classList.add('hidden'); // Hide orange filters [cite: 116]
+            document.getElementById('nav-PROG').classList.add('active'); // [cite: 117]
+            
+            renderModuleShell('PROG'); // [cite: 117]
+            routeTab('PROG', 'DASHBOARD'); // [cite: 117]
+
+            // Fetch data if empty, otherwise render filters immediately
+            if (progressChaserData && progressChaserData.length > 0) {
+                renderProgressFilters(); // [cite: 118]
+            } else {
+                const loader = document.getElementById('loader');
+                if (loader) loader.classList.remove('hidden'); // Show loader while fetching PROG data [cite: 120]
+                google.script.run.withSuccessHandler(onProgressDataSuccess).getProgressData(); // [cite: 120]
+            }
+        } else {
+        // --- MODE: PERFORMANCE SUMMARY ---
+        if (globalFilterPanel) globalFilterPanel.classList.remove('hidden'); 
+        const perfNav = document.getElementById('nav-PERF');
+        if (perfNav) perfNav.classList.add('active'); 
+        
+        renderModuleShell('PERF'); 
+        
+        if (isDataLoaded) {
+          routeTab('PERF', 'ANALYTICS');
+        } else {
+          const loader = document.getElementById('loader');
+          if (loader) loader.classList.remove('hidden');
+        }
+      }
+    }
+
+    function renderModuleShell(module) {
+      const heroContainer = document.getElementById('module-hero-container');
+      const navContainer = document.getElementById('dynamic-sub-nav');
+
+      if (heroContainer) heroContainer.innerHTML = "";
+      if (navContainer) navContainer.innerHTML = "";
+
+      if (module === 'PERF') {
+        injectCommonHeader();
+        navContainer.innerHTML = `
+          <button class="toggle-btn" onclick="toggleFilterSidebar()">☰</button>
+          <button id="btn-PERF-ANALYTICS" class="sub-link" onclick="routeTab('PERF', 'ANALYTICS')">Analytics</button>
+          <button id="btn-PERF-DATA" class="sub-link" onclick="routeTab('PERF', 'DATA')">Data</button>`;
+      } else if (module === 'PROG') {
+        // Progress Chaser Header Banner
+        heroContainer.innerHTML = `
+        <div class="hero-section shadow-sm" style="border-left-color: #4442e3; margin-bottom: 10px !important; padding: 15px !important;">
+          <div class="hero-header" style="font-weight: 700; font-size: 1.1rem;">BPT PROGRESS CHASER</div>
+          <div style="font-size: 0.8rem;">The progress chaser dashboard shows real-time project milestones.</div>
+        </div>`;
+        // Hamburger button (toggle-btn) is removed [cite: 133]
+        navContainer.innerHTML = `
+          <button id="btn-PROG-DASHBOARD" class="sub-link" onclick="routeTab('PROG', 'DASHBOARD')">Dashboard</button>
+          <button id="btn-PROG-PROGRESS" class="sub-link" onclick="routeTab('PROG', 'PROGRESS')">Progress</button>`;
+      }
+    }
+
+    function routeTab(module, tab) {
+      // 1. If Performance data isn't ready, don't allow tab switching for PERF module
+      if (!isDataLoaded && module === 'PERF') {
+        return; 
+      }
+
+      // 2. Hide all modules and deactivate all sub-navigation buttons
+      document.querySelectorAll('.module-view').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.sub-link').forEach(el => el.classList.remove('active'));
+
+      // 3. Show the target container
+      const targetId = `view-${module.toLowerCase()}-${tab.toLowerCase()}`;
+      const targetElement = document.getElementById(targetId);
+      if (targetElement) {
+        targetElement.classList.remove('hidden');
+      }
+
+      // 4. Highlight the active sub-nav button
+      const btnId = `btn-${module}-${tab}`;
+      const btn = document.getElementById(btnId);
+      if (btn) btn.classList.add('active');
+
+      // 5. DATA RENDERING TRIGGERS
+      if (module === 'PERF') {
+        // Logic for Performance Summary
+        if (tab === 'DATA') {
+          renderDataTable();
+        } else {
+          applyFilters();
+        }
+      } else if (module === 'PROG') {
+        // Logic for Progress Chaser
+        if (tab === 'DASHBOARD') {
+          // This ensures filters reappear when clicking back to the Dashboard tab
+          if (typeof progressChaserData !== 'undefined' && progressChaserData.length > 0) {
+            renderProgressFilters();
+          }
+        }
+      }
+    }
+
+
+  function buildSidebar() {
+    const headers = masterData[0], rows = masterData.slice(1);
+    const container = document.getElementById('filter-container');
+    container.innerHTML = "";
+    const configs = [
+      { id: "f-cust", name: "Customer", col: "Customer", defaults: [] },
+      { id: "f-bu", name: "Business Unit", col: "BU", defaults: [] },
+      { id: "f-lob", name: "Line of Business", col: "LoB", defaults: ["Engineering", "Design"] },
+      { id: "f-srv", name: "Service Line", col: "Service Line", defaults: ["Engineering", "Professional Services"] },
+      { id: "f-mod", name: "Engagement Model", col: "Engagement Model", defaults: [] },
+      { id: "f-geo", name: "Delivery Geo", col: "DU Region (Primary)", defaults: [] },
+      { id: "f-grp", name: "Delivery Group", col: "Delivery Group (Primary)", defaults: [] },
+      { id: "f-unit", name: "Delivery Unit", col: "Delivery Unit (Primary)", defaults: [] }
+    ];
+    configs.forEach(cfg => {
+      const idx = headers.indexOf(cfg.col);
+      if (idx === -1) return;
+      const vals = [...new Set(rows.map(r => r[idx]))].filter(v => v).sort();
+      let html = `<div class="filter-label-row"><span class="filter-label">${cfg.name}</span><div><span class="btn-select-action" onclick="toggleGrp('${cfg.id}', true)">All</span><span class="btn-select-action" onclick="toggleGrp('${cfg.id}', false)">Clear</span></div></div><div id="${cfg.id}" class="filter-scroll-container">`;
+      vals.forEach(v => {
+        let isChecked = cfg.defaults.length === 0 || cfg.defaults.includes(v);
+        html += `<div class="filter-item"><input type="checkbox" value="${v}" onchange="applyFilters()" ${isChecked ? "checked" : ""}><span>${v}</span></div>`;
+      });
+      container.innerHTML += html + `</div>`;
+    });
+  }
+
+  function toggleGrp(id, state) {
+    document.getElementById(id).querySelectorAll('input').forEach(i => i.checked = state);
+    applyFilters();
+  }
+
+  function applyFilters() {
+    if (!google.visualization || masterData.length === 0) return;
+    const headers = masterData[0], rows = masterData.slice(1);
+    const getSel = (id) => {
+      const el = document.getElementById(id);
+      return el ? Array.from(el.querySelectorAll('input:checked')).map(i => i.value) : [];
+    };
+    const sel = {
+      cust: getSel("f-cust"), bu: getSel("f-bu"), lob: getSel("f-lob"),
+      srv: getSel("f-srv"), geo: getSel("f-geo"), grp: getSel("f-grp"),
+      unit: getSel("f-unit"), mod: getSel("f-mod")
+    };
+    const filteredRows = rows.filter(r => {
+      const match = (list, val) => list.length === 0 || list.includes(val);
+      return match(sel.cust, r[headers.indexOf("Customer")]) &&
+        match(sel.bu, r[headers.indexOf("BU")]) &&
+        match(sel.lob, r[headers.indexOf("LoB")]) &&
+        match(sel.srv, r[headers.indexOf("Service Line")]) &&
+        match(sel.geo, r[headers.indexOf("DU Region (Primary)")]) &&
+        match(sel.grp, r[headers.indexOf("Delivery Group (Primary)")]) &&
+        match(sel.unit, r[headers.indexOf("Delivery Unit (Primary)")]) &&
+        match(sel.mod, r[headers.indexOf("Engagement Model")]);
+    });
+
+    const isDataTab = !document.getElementById('view-perf-data').classList.contains('hidden');
+    if (isDataTab) renderDataTable(headers, filteredRows);
+    else {
+      drawCommercialMixChart(headers, filteredRows);
+      drawProjectMarginChart(headers, filteredRows);
+      renderNewProjectsBreakdown(headers, filteredRows);
+    }
+  }
+
+  function drawCommercialMixChart(headers, rows) {
+    const idxQtr = headers.indexOf("QUARTER"), idxRev = headers.indexOf("Total Revenue"), idxModel = headers.indexOf("Engagement Model");
+    let qData = {};
+    rows.forEach(r => {
+      const q = r[idxQtr] || "Unknown", rev = cleanNumber(r[idxRev]), m = r[idxModel];
+      if (!qData[q]) qData[q] = { total: 0, tm: 0, ntm: 0 };
+      qData[q].total += rev;
+      if (["Staffing / Capacity", "Others"].includes(m)) qData[q].tm += rev; else qData[q].ntm += rev;
+    });
+    const sorted = Object.keys(qData).sort();
+    let data = new google.visualization.DataTable();
+    data.addColumn('string', 'Quarter');
+    data.addColumn('number', 'TOTAL REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'T&M REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'non-T&M REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'non-T&M Mix %'); data.addColumn({ type: 'string', role: 'annotation' });
+    sorted.forEach(q => {
+      const d = qData[q], mix = d.total > 0 ? (d.ntm / d.total) : 0;
+      const vt = d.total / 1000000, vtm = d.tm / 1000000, vntm = d.ntm / 1000000;
+      data.addRow([q, vt, `$${vt.toFixed(1)}M`, vtm, `$${vtm.toFixed(1)}M`, vntm, `$${vntm.toFixed(1)}M`, mix, `${(mix * 100).toFixed(2)}%`]);
+    });
+    new google.visualization.ComboChart(document.getElementById('chart_mix')).draw(data, {
+      backgroundColor: '#FFFFFF', chartArea: { width: '92%', height: '75%', backgroundColor: '#53BDBE' },
+      seriesType: 'bars', tooltip: { textStyle: { fontSize: 10 } },
+      series: { 0: { color: '#6D6E71' }, 1: { color: '#4442e3' }, 2: { color: '#ff5f2d' }, 3: { type: 'line', color: '#ff5f2d', targetAxisIndex: 1, pointSize: 5, lineWidth: 2 } },
+      vAxes: { 0: { title: 'Rev ($M)', textPosition: 'none', gridlines: { color: 'transparent' }, titleTextStyle: { fontSize: 9 } }, 1: { title: 'Mix %', textPosition: 'none', gridlines: { color: 'transparent' }, minValue: 0, maxValue: 1, titleTextStyle: { fontSize: 9 } } },
+      hAxis: { title: 'Quarter', titleTextStyle: { fontSize: 9 }, textStyle: { fontSize: 8 } },
+      legend: { position: 'bottom', textStyle: { fontSize: 9 } }, annotations: { alwaysOutside: true, textStyle: { fontSize: 8, bold: true } }
+    });
+  }
+
+  function drawProjectMarginChart(headers, rows) {
+    const idxQtr = headers.indexOf("QUARTER"), idxRev = headers.indexOf("Total Revenue"), idxMargin = headers.indexOf("Project Margin (USD)"), idxModel = headers.indexOf("Engagement Model");
+    let qData = {};
+    rows.forEach(r => {
+      const q = r[idxQtr] || "Unknown", rev = cleanNumber(r[idxRev]), mgn = cleanNumber(r[idxMargin]), m = r[idxModel];
+      if (!qData[q]) qData[q] = { tmRev: 0, tmMgn: 0, ntmRev: 0, ntmMgn: 0 };
+      if (["Staffing / Capacity", "Others"].includes(m)) { qData[q].tmRev += rev; qData[q].tmMgn += mgn; } else { qData[q].ntmRev += rev; qData[q].ntmMgn += mgn; }
+    });
+    const sorted = Object.keys(qData).sort();
+    let data = new google.visualization.DataTable();
+    data.addColumn('string', 'Quarter');
+    data.addColumn('number', 'T&M PROJECT MARGIN%'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'non-T&M PROJECT MARGIN%'); data.addColumn({ type: 'string', role: 'annotation' });
+    sorted.forEach(q => {
+      const d = qData[q], tmPct = d.tmRev > 0 ? d.tmMgn / d.tmRev : 0, ntmPct = d.ntmRev > 0 ? d.ntmMgn / d.ntmRev : 0;
+      data.addRow([q, tmPct, `${(tmPct * 100).toFixed(2)}%`, ntmPct, `${(ntmPct * 100).toFixed(2)}%`]);
+    });
+    new google.visualization.LineChart(document.getElementById('chart_margin')).draw(data, {
+      backgroundColor: '#FFFFFF', chartArea: { width: '92%', height: '75%', backgroundColor: '#53BDBE' },
+      colors: ['#4442e3', '#ff5f2d'], tooltip: { textStyle: { fontSize: 10 } },
+      vAxis: { title: 'Project Margin %', format: 'percent', viewWindow: { min: 0.2, max: 0.6 }, gridlines: { count: 5 }, titleTextStyle: { fontSize: 9 }, textStyle: { fontSize: 8 } },
+      hAxis: { title: 'Quarter', titleTextStyle: { fontSize: 9 }, textStyle: { fontSize: 8 } },
+      legend: { position: 'bottom', textStyle: { fontSize: 9 } }, annotations: { alwaysOutside: true, textStyle: { fontSize: 8, bold: true } },
+      pointSize: 5, lineWidth: 2
+    });
+  }
+
+  function renderNewProjectsBreakdown(headers, rows) {
+    drawGenericNewProjectsChart(headers, rows, "Delivery Group (Primary)", 'chart_new_projects_grp', 'Delivery Group');
+    drawGenericNewProjectsChart(headers, rows, "BU", 'chart_new_projects_bu', 'Business Unit');
+    drawGenericNewProjectsChart(headers, rows, "Engagement Model", 'chart_new_projects_mod', 'Engagement Model');
+  }
+
+  function drawGenericNewProjectsChart(headers, rows, dimensionCol, containerId, axisTitle) {
+    const idxDim = headers.indexOf(dimensionCol);
+    const idxRev = headers.indexOf("Total Revenue");
+    const idxModel = headers.indexOf("Engagement Model");
+    const idxDate = headers.indexOf("Project Start Date");
+    const idxCust = headers.indexOf("Customer");
+    const idxProj = headers.indexOf("Project Code");
+    if (idxDim === -1 || idxDate === -1) return;
+    const cutoffValue = document.getElementById('local-date-filter').value;
+    const cutoff = new Date(cutoffValue);
+    let gData = {};
+    rows.forEach(r => {
+      const d = new Date(r[idxDate]);
+      if (d >= cutoff) {
+        const dimValue = r[idxDim] || "Unknown";
+        const rev = cleanNumber(r[idxRev]);
+        const m = r[idxModel];
+        if (!gData[dimValue]) gData[dimValue] = { total: 0, tm: 0, ntm: 0, custs: new Set(), projs: new Set() };
+        gData[dimValue].total += rev;
+        if (["Staffing / Capacity", "Others"].includes(m)) gData[dimValue].tm += rev; else gData[dimValue].ntm += rev;
+        if (r[idxCust]) gData[dimValue].custs.add(r[idxCust]);
+        if (r[idxProj]) gData[dimValue].projs.add(r[idxProj]);
+      }
+    });
+    const sorted = Object.keys(gData).sort((a, b) => gData[b].total - gData[a].total);
+    if (sorted.length === 0) {
+      document.getElementById(containerId).innerHTML = "<p style='text-align:center; padding-top:100px; color:#666;'>No projects found for selected date.</p>";
+      return;
+    }
+    let data = new google.visualization.DataTable();
+    data.addColumn('string', dimensionCol);
+    data.addColumn('number', 'NEW REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'NEW T&M REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'NEW nonT&M REVENUE'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'CUSTOMER'); data.addColumn({ type: 'string', role: 'annotation' });
+    data.addColumn('number', 'PROJECT'); data.addColumn({ type: 'string', role: 'annotation' });
+    sorted.forEach(dim => {
+      const d = gData[dim], vt = d.total / 1000000, vtm = d.tm / 1000000, vntm = d.ntm / 1000000;
+      data.addRow([dim, vt, `$${vt.toFixed(1)}M`, vtm, `$${vtm.toFixed(1)}M`, vntm, `$${vntm.toFixed(1)}M`, d.custs.size, String(d.custs.size), d.projs.size, String(d.projs.size)]);
+    });
+    new google.visualization.ComboChart(document.getElementById(containerId)).draw(data, {
+      backgroundColor: '#FFFFFF', chartArea: { width: '98%', height: '80%', top: 10, bottom: 60, left: 15, right: 40, backgroundColor: '#53BDBE' },
+      seriesType: 'bars', tooltip: { textStyle: { fontSize: 10 } },
+      series: {
+        0: { color: '#6D6E71', targetAxisIndex: 0 }, 1: { color: '#4442e3', targetAxisIndex: 0 }, 2: { color: '#ff5f2d', targetAxisIndex: 0 },
+        3: { type: 'line', color: '#F4D034', targetAxisIndex: 1, pointSize: 4 }, 4: { type: 'line', color: '#8EC549', targetAxisIndex: 1, pointSize: 4 }
+      },
+      vAxes: {
+        0: { title: 'Rev ($M)', textPosition: 'none', gridlines: { color: 'transparent' }, titleTextStyle: { fontSize: 9 } },
+        1: { title: 'Count', titleTextStyle: { fontSize: 9 }, textStyle: { fontSize: 8 }, gridlines: { color: '#f3f3f3', count: 5 } }
+      },
+      hAxis: { title: axisTitle, titleTextStyle: { fontSize: 9 }, textStyle: { fontSize: 7.5 }, slantedText: true, slantedTextAngle: 45 },
+      legend: { position: 'bottom', textStyle: { fontSize: 9 }, maxLines: 1 },
+      annotations: { alwaysOutside: true, textStyle: { fontSize: 8, bold: true } }
+    });
+  }
+
+/**
+ * Renders the aggregated Data Table for the Performance Summary module.
+ * Features: Local Quarter filtering, Project ID toggle, and auto-pagination.
+ */
+    function renderDataTable(headers, filteredRows) {
+    // If we are in Progress Chaser, stop the Performance Data Table from rendering
+      if (currentModule !== 'PERFORMANCE_SUMMARY') return;
+      // 1. Data Setup: Use passed data or fall back to masterData
+      const h = headers || masterData[0];
+      const r_data = filteredRows || masterData.slice(1);
+
+      // 2. Reveal the container (Critical for visibility)
+      const dataView = document.getElementById('view-perf-data');
+      if (dataView) dataView.classList.remove('hidden');
+
+      // 3. Column Index Mapping
+      const idx = {
+        cust: h.indexOf("Customer"),
+        bu: h.indexOf("BU"),
+        model: h.indexOf("Engagement Model"),
+        geo: h.indexOf("DU Region (Primary)"),
+        grp: h.indexOf("Delivery Group (Primary)"),
+        unit: h.indexOf("Delivery Unit (Primary)"),
+        qtr: h.indexOf("QUARTER"),
+        rev: h.indexOf("Total Revenue"),
+        labMgn: h.indexOf("Billed LM (USD)"),
+        projMgn: h.indexOf("Project Margin (USD)"),
+        pId: h.indexOf("Project Code"),
+        pName: h.indexOf("Project Name")
+      };
+
+      // 4. Handle Quarter Filter Initialization
+      const qtrSelect = document.getElementById('local-qtr-filter');
+      if (qtrSelect && qtrSelect.options.length === 0) {
+        const allQuarters = [...new Set(masterData.slice(1).map(r => r[idx.qtr]))].filter(v => v).sort();
+        allQuarters.forEach((q, i) => {
+          let opt = new Option(q, q);
+          if (i === allQuarters.length - 1) opt.selected = true; // Default to latest quarter
+          qtrSelect.add(opt);
+        });
+      }
+
+      const selectedQtr = qtrSelect ? qtrSelect.value : "";
+      const showProjectInfo = document.getElementById('toggle-project-id').checked;
+
+      // 5. Aggregation Logic (Grouping by the visible metadata)
+      let aggregated = {};
+      const qtrRows = r_data.filter(r => r[idx.qtr] === selectedQtr);
+
+      qtrRows.forEach(r => {
+        let metaCols = [];
+        // If toggled, add Project Code/Name to the grouping key
+        if (showProjectInfo) {
+          metaCols.push(r[idx.pId], r[idx.pName]);
+        }
+        metaCols.push(r[idx.cust], r[idx.bu], r[idx.model], r[idx.geo], r[idx.grp], r[idx.unit]);
+        
+        const key = metaCols.join('|');
+        if (!aggregated[key]) {
+          aggregated[key] = { meta: metaCols, rev: 0, lab: 0, proj: 0 };
+        }
+        
+        aggregated[key].rev += cleanNumber(r[idx.rev]);
+        aggregated[key].lab += cleanNumber(r[idx.labMgn]);
+        aggregated[key].proj += cleanNumber(r[idx.projMgn]);
+      });
+
+      // 6. Store in Global Variable for Pagination and Reset to Page 1
+      currentTableData = Object.values(aggregated);
+      currentPage = 1; 
+      
+      // 7. Call the Pagination Engine to Draw the Table
+      displayPage(currentPage);
+    }
+
+/**
+ * Pagination Engine: Draws the actual HTML table based on the current page.
+ */
+function displayPage(page) {
+  const start = (page - 1) * recordsPerPage;
+  const end = start + recordsPerPage;
+  const pageData = currentTableData.slice(start, end);
+  const showProjectInfo = document.getElementById('toggle-project-id').checked;
+
+  // Build Table HTML with Fixed Layout Column Groups
+  let tableHtml = `<table class="table table-hover table-sm table-fixed-layout" style="font-size: 0.62rem; width: 100%;"><colgroup>`;
+  
+  if (showProjectInfo) {
+    tableHtml += `<col style="width: 7%"><col style="width: 10%">`; // Project ID & Name
+    for(let i=0; i<6; i++) tableHtml += `<col style="width: 8.5%">`; // Metadata
+    for(let i=0; i<3; i++) tableHtml += `<col style="width: 8%">`;   // Values
+    for(let i=0; i<2; i++) tableHtml += `<col style="width: 4.5%">`; // %s
+  } else {
+    for(let i=0; i<6; i++) tableHtml += `<col style="width: 11.5%">`; // Metadata
+    for(let i=0; i<3; i++) tableHtml += `<col style="width: 9%">`;    // Values
+    for(let i=0; i<2; i++) tableHtml += `<col style="width: 3.5%">`;  // %s
+  }
+  
+  tableHtml += `</colgroup><thead class="table-dark"><tr>`;
+  if (showProjectInfo) tableHtml += `<th>PROJECT ID</th><th>PROJECT NAME</th>`;
+  tableHtml += `<th>CUSTOMER</th><th>BUSINESS UNIT</th><th>ENGAGEMENT MODEL</th><th>DELIVERY GEO</th><th>DELIVERY GROUP</th><th>DELIVERY UNIT</th><th class="text-end">REVENUE</th><th class="text-end">LABOR MARGIN</th><th class="text-end">PROJECT MARGIN</th><th class="text-end">LM %</th><th class="text-end">PM %</th></tr></thead><tbody>`;
+
+  if (pageData.length === 0) {
+    tableHtml += `<tr><td colspan="${showProjectInfo ? 13 : 11}" class="text-center p-4">No records found for the selected quarter.</td></tr>`;
+  } else {
+    pageData.forEach(item => {
+      const lmPct = item.rev !== 0 ? (item.lab / item.rev) * 100 : 0;
+      const pmPct = item.rev !== 0 ? (item.proj / item.rev) * 100 : 0;
+      
+      tableHtml += `<tr>`;
+      item.meta.forEach(m => tableHtml += `<td>${m || ""}</td>`);
+      tableHtml += `<td class="text-end">$${item.rev.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>`;
+      tableHtml += `<td class="text-end">$${item.lab.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>`;
+      tableHtml += `<td class="text-end">$${item.proj.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>`;
+      tableHtml += `<td class="text-end fw-bold ${lmPct < 0 ? 'text-danger' : ''}">${lmPct.toFixed(2)}%</td>`;
+      tableHtml += `<td class="text-end fw-bold ${pmPct < 0 ? 'text-danger' : ''}">${pmPct.toFixed(2)}%</td></tr>`;
+    });
+  }
+  
+  tableHtml += `</tbody></table>`;
+  document.getElementById('raw-data-container').innerHTML = tableHtml;
+
+  // Update Pagination UI
+  const totalEntries = currentTableData.length;
+  const totalPages = Math.ceil(totalEntries / recordsPerPage);
+  const controls = document.getElementById('pagination-controls');
+  
+  if (totalEntries > 0) {
+    controls.classList.remove('hidden');
+    document.getElementById('page-info').innerText = `Showing ${start + 1} to ${Math.min(end, totalEntries)} of ${totalEntries} entries`;
+    document.getElementById('prev-btn-item').classList.toggle('disabled', page === 1);
+    document.getElementById('next-btn-item').classList.toggle('disabled', page === totalPages || totalPages === 0);
+  } else {
+    controls.classList.add('hidden');
+  }
+}
+
+  function changePage(step) {
+    const totalPages = Math.ceil(currentTableData.length / recordsPerPage), newPage = currentPage + step;
+    if (newPage >= 1 && newPage <= totalPages) { currentPage = newPage; displayPage(currentPage); }
+  }
+
+  function downloadTableAsCSV() {
+    if (currentTableData.length === 0) return;
+    const showProjectInfo = document.getElementById('toggle-project-id').checked;
+    let csv = [];
+    let headerRow = showProjectInfo ? ["PROJECT ID", "PROJECT NAME"] : [];
+    headerRow.push("CUSTOMER", "BUSINESS UNIT", "ENGAGEMENT MODEL", "DELIVERY GEO", "DELIVERY GROUP", "DELIVERY UNIT", "REVENUE", "LABOR MARGIN", "PROJECT MARGIN", "LM %", "PM %");
+    csv.push(headerRow.join(","));
+    currentTableData.forEach(item => {
+      const lmPct = item.rev !== 0 ? (item.lab / item.rev) * 100 : 0, pmPct = item.rev !== 0 ? (item.proj / item.rev) * 100 : 0;
+      let row = [...item.meta, item.rev, item.lab, item.proj, lmPct.toFixed(2) + "%", pmPct.toFixed(2) + "%"];
+      csv.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","));
+    });
+    const blob = new Blob([csv.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob), link = document.createElement("a");
+    link.setAttribute("href", url); link.setAttribute("download", `BPT_Data_Review_${new Date().toLocaleDateString()}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  }
+
+  function injectCommonHeader() {
+    const headerHtml = `
+      <div class="hero-section shadow-sm">
+        <div class="hero-header" style="font-weight: 700; font-size: 1.2rem; color: var(--gl-dark-grey); margin-bottom: 5px;">BPT PERFORMANCE SUMMARY</div>
+        <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 5px;">Drive Business Profile Transformation by focusing on:</div>
+        <ul class="hero-list" style="font-size: 0.8rem; color: #555; list-style-type: disc; padding-left: 15px;">
+          <li><strong>GenAI Adoption:</strong> Integrate GenAI tools into the Software SDLC to enhance delivery efficiency.</li>
+          <li><strong>Proactive Identification:</strong> Shortlist projects/accounts with potential for BPT, using the guidelines below.</li>
+          <li><strong>Engagement Model Shift:</strong> Collaborate with clients to evolve from Staff Augmentation to Non-Linear Models (e.g., Output-based, Outcome-based).</li>
+          <li><strong>Margin Improvement:</strong> Improve delivery efficiency to drive measurable cost and margin benefits.</li>
+          <li><strong>CPT Linkage:</strong> Ensure resulting cost savings are tracked under the Cost Profile Transformation (CPT) initiative.</li>
+        </ul>
+        <div class="hero-sub" style="font-weight: 700; font-size: 0.9rem; color: #333; margin-top: 10px;">BPT Transformation Guidelines</div>
+        <ul class="hero-list" style="list-style: none; padding-left: 0; font-size: 0.8rem; color: #555;">
+          <li>✅ <strong>Target Low-Margin, Staff Augmentation Models:</strong> Focus on engagements with low profitability and resource-based pricing structures.</li>
+          <li>✅ <strong>Assess Outcome Measurability:</strong> Favor projects where delivery can be measured via Sprint Velocity, Story Points, Deliverables, or Milestones.</li>
+        </ul>
+        <hr style="margin: 10px 0; border-top: 1px solid var(--gl-light-grey);">
+        <div class="hero-header" style="font-weight: 700; font-size: 1rem; color: var(--gl-dark-grey); margin-bottom: 5px;">BPT GOAL</div>
+        <div style="font-size: 0.8rem;">
+          GOAL 1: <span class="goal-highlight" style="color: #F37037; font-weight: 900;">30%</span> Revenue in non-T&M model by end of FY26. | 
+          GOAL 2: <span class="goal-highlight" style="color: #F37037; font-weight: 900;">3%</span> Margin uplift for non-T&M by end of FY26.
+        </div>
+      </div>`;
+    const container = document.getElementById('module-hero-container');
+    if (container) container.innerHTML = headerHtml;
+  }
+
+  function resetUI() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(i => i.checked = false);
+    document.getElementById('local-date-filter').value = '2026-01-01';
+    applyFilters();
+  }
+
+  function toggleFilterSidebar() {
+    document.getElementById('filter-sidebar').classList.toggle('collapsed');
+  }
+
+    function onProgressDataSuccess(data) {
+        progressChaserData = JSON.parse(data);
+        
+        // 1. Force the loader to hide first
+        const loader = document.getElementById('loader');
+        if (loader) loader.classList.add('hidden');
+        
+        // 2. Clear all views to ensure a clean slate
+        document.querySelectorAll('.module-view').forEach(el => el.classList.add('hidden'));
+
+        // 3. Render the filters
+        renderProgressFilters();
+        
+        // 4. Reveal the Dashboard view
+        if (currentModule === 'PROGRESS_CHASER') {
+            routeTab('PROG', 'DASHBOARD');
+        }
+    }
+              
+  function renderProgressFilters() {
+    // 1. Safety checks
+    if (!progressChaserData || progressChaserData.length === 0) return;
+    
+    const container = document.getElementById('progress-filters');
+    if (!container) return;
+
+    const h = progressChaserData[0]; // Headers
+    const r = progressChaserData.slice(1); // Data rows
+
+    // 2. Define the specific columns to filter
+    const filterSpecs = [
+      { name: "TRANSFORMATION STATUS", field: "BPT Transformation Status", id: "filter-prog-status" },
+      { name: "ACCOUNT TYPE", field: "Account Type", id: "filter-prog-account" },
+      { name: "PRIMARY GEO", field: "BPT Transformation Delivery GEO", id: "filter-prog-geo" },
+      { name: "BPT GOALS", field: "Which BPT Transformation GOAL it will fulfill", id: "filter-prog-goal" }
+    ];
+
+    container.innerHTML = ""; // Clear container
+
+    filterSpecs.forEach(spec => {
+      const idx = h.indexOf(spec.field);
+      if (idx === -1) return;
+
+      // Get unique, non-empty, sorted values
+      const options = [...new Set(r.map(row => row[idx]))]
+                      .filter(v => v && String(v).trim() !== "")
+                      .sort();
+
+      // 3. Build the HTML with the 'applyProgressFilters' trigger
+      let html = `
+        <div class="col-md-3 mb-2">
+          <div class="card p-2 shadow-sm" style="border-top: 3px solid #4442e3;">
+            <div class="filter-label" style="font-size: 0.65rem; font-weight: 700; color: #4442e3; margin-bottom: 5px;">
+              ${spec.name}
+            </div>
+            <select id="${spec.id}" class="form-select form-select-sm" onchange="applyProgressFilters()" style="font-size: 0.7rem;">
+              <option value="ALL">All ${spec.name}</option>
+              ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+      
+      container.innerHTML += html;
+    });
+  }
+</script>
+  </body>
+</html>
